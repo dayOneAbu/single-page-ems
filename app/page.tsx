@@ -1,69 +1,142 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useCallback, useEffect, useState } from "react"
+import { EmployeesTable } from "@/components/employees/employees-table"
+import RegestrationForm from "@/components/employe-form"
+import { Button } from "@/components/ui/button"
+import { checkDatabaseHealth } from "@/lib/api-client"
+import { Users, UserPlus } from "lucide-react"
+
+export default function EmployeesPage() {
+  const [activeTab, setActiveTab] = useState<"directory" | "register">("directory")
+  const [connectionStatus, setConnectionStatus] = useState<
+    "checking" | "connected" | "disconnected"
+  >("checking")
+
+  const verifyConnection = useCallback(async () => {
+    setConnectionStatus("checking")
+    try {
+      const health = await checkDatabaseHealth()
+      setConnectionStatus(health.connected ? "connected" : "disconnected")
+    } catch {
+      setConnectionStatus("disconnected")
+    }
+  }, [])
+
+  useEffect(() => {
+    let ignore = false
+
+    async function check() {
+      try {
+        const health = await checkDatabaseHealth()
+        if (!ignore) {
+          setConnectionStatus(health.connected ? "connected" : "disconnected")
+        }
+      } catch {
+        if (!ignore) {
+          setConnectionStatus("disconnected")
+        }
+      }
+    }
+
+    void check()
+    const interval = setInterval(() => {
+      void check()
+    }, 30000)
+
+    return () => {
+      ignore = true
+      clearInterval(interval)
+    }
+  }, [])
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="container mx-auto px-4 py-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b pb-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={activeTab === "directory" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("directory")}
+            className="font-medium"
+          >
+            <Users className="mr-2 size-4" />
+            Employee Directory
+          </Button>
+
+          <Button
+            variant={activeTab === "register" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("register")}
+            className="font-medium"
+          >
+            <UserPlus className="mr-2 size-4" />
+            Employee Registration Form
+          </Button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setConnectionStatus("checking")
+            verifyConnection()
+          }}
+          title="Click to re-check SQLite database connection status"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200 hover:opacity-85 focus:outline-none focus:ring-2 focus:ring-ring"
+          style={{
+            borderColor:
+              connectionStatus === "connected"
+                ? "rgba(16, 185, 129, 0.35)"
+                : connectionStatus === "disconnected"
+                  ? "rgba(239, 68, 68, 0.35)"
+                  : "rgba(156, 163, 175, 0.35)",
+            backgroundColor:
+              connectionStatus === "connected"
+                ? "rgba(16, 185, 129, 0.1)"
+                : connectionStatus === "disconnected"
+                  ? "rgba(239, 68, 68, 0.1)"
+                  : "rgba(156, 163, 175, 0.1)",
+          }}
+        >
+          {connectionStatus === "connected" ? (
+            <>
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+              </span>
+              <span className="text-emerald-700 dark:text-emerald-400">
+                Connected to SQLite database (<span className="font-mono font-semibold">employees.db</span>)
+              </span>
+            </>
+          ) : connectionStatus === "disconnected" ? (
+            <>
+              <span className="relative flex size-2">
+                <span className="relative inline-flex size-2 rounded-full bg-red-500" />
+              </span>
+              <span className="text-red-600 dark:text-red-400">
+                Disconnected from SQLite database (<span className="font-mono font-semibold">employees.db</span>)
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="inline-block size-2 animate-pulse rounded-full bg-amber-500" />
+              <span className="text-amber-700 dark:text-amber-400">
+                Connecting to SQLite database (<span className="font-mono">employees.db</span>)...
+              </span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {activeTab === "directory" ? (
+        <EmployeesTable />
+      ) : (
+        <RegestrationForm
+          onSuccess={() => {
+            setActiveTab("directory")
+          }}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+      )}
+    </main>
+  )
 }
